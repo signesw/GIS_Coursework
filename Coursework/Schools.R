@@ -18,10 +18,6 @@ library(tmaptools)
 #Reading in all schools basefile
 AllSchools <- read.csv(here::here("edubasealldata.csv"))
 
-#Filter
-
-
-str(AllSchools)
 
 #FILTERING OUT FOR 16_18 students
 
@@ -103,13 +99,11 @@ tm_shape(LSOA) +
 
 #Filter the catchment data to only the ones we want
 URNs <- unique(FinalSchools$URN)
-<<<<<<< HEAD
+
+#Filter out points that are not within LSOA shapefile
 LSOAs <- unique(LSOA$LSOA11CD)
 FinalCatchment <- subset(Catchment, ï..Secondary_School_URN %in% URNs)
 FinalCatchment <- subset(FinalCatchment, LSOA_CODE %in% LSOAs)
-=======
-FinalCatchment <- subset(Catchment, ï..Secondary_School_URN %in% URNs)
->>>>>>> 1dafa8aa3e72847ff067092cb2f22c4d095ad0e7
 
 #Cleaning the data (remove unecessary columns):
 FinalCatchment <- dplyr::select(FinalCatchment, -c(Secondary2LSOA_Flow_No., LSOA_NAME))
@@ -120,8 +114,8 @@ CatchmentWithGeometry <- dplyr::left_join(FinalSchools,FinalCatchment,by="URN")
 
 #Simple table
 FlowsWithGeometry <- dplyr::select(CatchmentWithGeometry, c(Secondary_School_Name,LSOA_CODE, Pupil_count,geometry))
-<<<<<<< HEAD
-#Filter out points that are not within LSOA shapefile
+
+
 #Rename column
 LSOA <- LSOA %>% rename(LSOA_CODE="LSOA11CD")
 
@@ -155,7 +149,7 @@ tmaptools::palette_explorer()
 tm_shape(LSOA) +
   tm_polygons(col = NA, alpha = 0.5, lwd=0.1)+
 tm_shape(travel_lines) +
-  tm_lines(palette = "plasma", #breaks = c(0, 5, 10, 20, 40, 100, 200),
+  tm_lines(palette = "plasma", breaks = c(0, 5, 10, 20, 40, 100, 200),
            lwd = w,
            scale = 9,
            title.lwd = "Number of pupils",
@@ -182,14 +176,4 @@ LSOA_with_average <- left_join(LSOA,Sums_LSOA, by="LSOA_CODE")
 
 tm_shape(LSOA_with_average) +
   tm_polygons(col = "average_distance", title="Average Distance to School (km)", alpha = 0.9, lwd=0.1)
-=======
-#Need to add LSOA geometry
-LSOA %>% rename(LSOA_CODE="LSOA11CD")
-FlowsWithGeometry <-st_join(FlowsWithGeometry,LSOA,by="LSOA_CODE")
 
-
-#take centroid of LSOA areas (st_centroid)
-st_write(LSOA,"LSOA.shp")
-
-#School location as a sf point object and a separate sf object with LSOA centroids
->>>>>>> 1dafa8aa3e72847ff067092cb2f22c4d095ad0e7
