@@ -134,7 +134,9 @@ zones=rbind(Points_Schools,Points_LSOA)
 
 library(stplanr)
 
+#Get the travel lines
 travel_lines <- od2line(flow = FlowsWithGeometry, zones = zones)
+#function for line widths as a proportion of the pupil count
 w <- FlowsWithGeometry$Pupil_count / max(FlowsWithGeometry$Pupil_count) *10
 tmap_mode("view")
 tm_shape(travel_lines)+
@@ -150,7 +152,7 @@ tm_shape(LSOA) +
   tm_polygons(col = NA, alpha = 0.5, lwd=0.1)+
 tm_shape(travel_lines) +
   tm_lines(palette = "plasma", breaks = c(0, 5, 10, 20, 40, 100, 200),
-           lwd = w,
+           lwd = "Pupil_count",
            scale = 9,
            title.lwd = "Number of pupils",
            alpha = 0.6,
