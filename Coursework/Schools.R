@@ -14,6 +14,7 @@ library(sf)
 library(geojson)
 library(geojsonio)
 library(tmaptools)
+library(viridis)
 
 #Reading in all schools basefile
 AllSchools <- read.csv(here::here("edubasealldata.csv"))
@@ -137,7 +138,6 @@ library(stplanr)
 #Get the travel lines
 travel_lines <- od2line(flow = FlowsWithGeometry, zones = zones)
 #function for line widths as a proportion of the pupil count
-w <- FlowsWithGeometry$Pupil_count / max(FlowsWithGeometry$Pupil_count) *10
 tmap_mode("view")
 tm_shape(travel_lines)+
   tm_lines(col="black",lwd = 0.1)+
@@ -167,15 +167,110 @@ l_distances <- geo_length(travel_lines)
 summary(l_distances)
 travel_lines$distances <- l_distances
 
+#make a dataframe with a row for each pupil and the travel distance
+
+total_students <- travel_lines[rep(1:nrow(travel_lines), travel_lines$Pupil_count),]
+
+
 #add column for average distance travelled
 travel_lines$total_distance <- ((travel_lines$Pupil_count)*(travel_lines$distances))
 Sums_LSOA <- st_set_geometry(travel_lines,NULL) %>% 
   dplyr::select(., c(LSOA_CODE,Pupil_count,total_distance)) %>% group_by(LSOA_CODE) %>% summarize_all(sum)
 Sums_LSOA <- transform(Sums_LSOA, average_distance = (total_distance / Pupil_count)/1000)
 
+#Plot distribution of distances
+
+total_students %>%
+  ggplot( aes(x=distances)) +
+  geom_histogram(bins=100, fill='skyblue', color='#69b3a2') + scale_x_log10()+
+  ggtitle("School travel distances in London per Student")+
+  xlab("Euclidian Travel Distance (m)")+
+  ylab("Count")
+  #Add some summary statistics
+
+#------------------ GET QUANTILE BREAKS ----------------------
+#First let's round average distance to 1 decimal place
+Sums_LSOA$average_distance_round=round(Sums_LSOA$average_distance, digits = 1)
+# get decile breaks based on the rounded values
+Sums_LSOA$deciles <- ntile(Sums_LSOA$average_distance_round, 10)
+dbreaks=quantile(Sums_LSOA$average_distance_round, probs = seq(0, 1, 1/10))
+dbreaks <- replace(dbreaks, c(1), 0)
+#cut dataframe based on breaks
+Sums_LSOA<- mutate(Sums_LSOA, deciles = cut(average_distance_round, dbreaks,c(1,2,3,4,5,6,7,8,9,10)))
+
+#Plot distribution of average by decile - first let's round
+
+df <- round(Sums_LSOA$average_distance,1)
+
+library(grDevices)
+
+colours <- get_brewer_pal("RdYlGn", n = 10)
+
+histbreaks <- seq(0,12,0.1)
+
+histogram_legend <- Sums_LSOA %>%
+  ggplot(aes(x=average_distance_round)) +
+  geom_histogram(binwidth=0.1,aes(fill = as.factor(deciles)),breaks=histbreaks)+ #scale_x_log10()+
+  scale_fill_manual(name = "Average distance deciles",values=rev(colours))+
+  geom_vline(xintercept = (dbreaks), linetype="dashed")+
+  guides(colour = guide_legend(nrow =1))+
+  xlab("Euclidian Travel Distance (km)")+
+  ylab("Count")+
+  theme_classic()+
+  theme(legend.position="none")
+
+histogram_legend <- histogram_legend + 
+  scale_y_continuous("Count", expand = c(0, 0), breaks = seq(0, 300, 50), 
+                     limits = c(0, 250)) + 
+  scale_x_continuous("Euclidian Travel Distance (km)", expand = c(0,0),breaks=seq(0,12,1))
+
+
+histogram_legend
+
+palette_explorer()
+
 #LEt's join this to LSOA data and map
 LSOA_with_average <- left_join(LSOA,Sums_LSOA, by="LSOA_CODE")
 
-tm_shape(LSOA_with_average) +
-  tm_polygons(col = "average_distance", title="Average Distance to School (km)", alpha = 0.9, lwd=0.1)
 
+#calculate and group by deciles
+LSOA_with_average$decile <- ntile(LSOA_with_average$average_distance, 10)
+ntile(LSOA_with_average$average_distance, 10)
+quantile(LSOA_with_average$average_distance, prob = seq(0, 1, length = 10), type = 5,na.rm=TRUE)
+#Distribution of average distance travelled
+
+tmap_mode("view")
+tm_shape(LSOA_with_average) +
+  tm_polygons(col = "decile", title="Average Distance to School (km)", alpha = 0.9, lwd=0.1)
+
+#Do a ggplot with histogram as legend
+palette_explorer()
+
+#add decile breaks to sf object
+LSOA_with_average<- mutate(LSOA_with_average, deciles = cut(average_distance, breaks$brks))
+
+legend <- ggplotGrob(histogram_legend) 
+
+Distance_deciles <- ggplot(LSOA_with_average) + 
+  geom_sf(aes(fill=as.factor(decile)),color=NA,size = 0.001)+
+  theme_void()+
+  scale_fill_manual(name = "Average distance deciles",values=rev(colours),na.value="gray")+
+  scale_x_continuous(expand = c(0, 0)) + 
+  scale_y_continuous(expand = c(0, 0)) +
+  theme(legend.position = "none")
+
+#Let's expand the London map to make place for our histogram
+Final <- Distance_deciles + coord_sf(xlim = c(502500, 591956.7), ylim = c(145850.8, 201500)) +
+  #adding the histogram
+  annotation_custom(
+    grob = legend, 
+    ymin=145850.8, 
+    ymax=168000.8,
+    xmin=551654,
+    xmax=591956.7)
+#and plot
+Final
+
+#Z score normalisation of different factors: income, cycle infrastructure? Other factors?
+#Check statutory walking distance?
+  
