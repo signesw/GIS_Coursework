@@ -107,12 +107,50 @@ FinalCatchment <- subset(Catchment, ï..Secondary_School_URN %in% URNs)
 FinalCatchment <- subset(FinalCatchment, LSOA_CODE %in% LSOAs)
 
 #Cleaning the data (remove unecessary columns):
-FinalCatchment <- dplyr::select(FinalCatchment, -c(Secondary2LSOA_Flow_No., LSOA_NAME))
-FinalCatchment <- FinalCatchment %>% rename(URN="ï..Secondary_School_URN")
+FinalCatchment <- dplyr::select(FinalCatchment, -c(Secondary2LSOA_Flow_No.)) %>% 
+  rename(URN="ï..Secondary_School_URN")
+
+#------------------- Flows from POPULATION ESTIMATES ----------------------------
+# read population csv - get the columns we want and filter for London
+Population <- read.csv(here::here("Population Estimates","population estimates.csv")) %>% 
+  dplyr::select(.,c(ï..LSOA.Code,LSOA.Name,LA.Code..2019.boundaries.,X0,X1,X2,X3,X4,X5,X6,X7,X8,X9,X10,X11,X12,X13,X14,X15,X16,X17,X18,X19,X20,X21,X22,X23,X24,X25))
+
+#Filter to the unqiue LSOAs in the flow data
+LSOA.names <- unique(FinalCatchment$LSOA_NAME)
+Population <- subset(Population, LSOA.Name %in% LSOA.names) %>% rename(LSOA_NAME="LSOA.Name")
+#We only want to add the age ranges of the schools
+ageranges <- FinalSchools %>%  dplyr::select(.,c(URN, StatutoryLowAge,StatutoryHighAge))
+
+#Now we want to add the statutory age range and age makeup for each LSOA
+Catchmentwithage <- dplyr::right_join(ageranges,FinalCatchment,by="URN")
+Catchmentwithage <- dplyr::left_join(Catchmentwithage,Population, by="LSOA_NAME")
+
+ranges <- Catchmentwithage %>%  dplyr::select(.,c(StatutoryLowAge,StatutoryHighAge,X0,X1,X2,X3,X4,X5,X6,X7,X8,X9,X10,X11,X12,X13,X14,X15,X16,X17,X18,X19,X20,X21,X22,X23,X24,X25))
+#get the column range 
+ranges <- ranges %>% 
+  mutate(low_column = StatutoryLowAge + 3, #pulling the columns for age
+         high_column = StatutoryHighAge + 3)
+#drop geometry column and convert all to numeric values
+ranges <- st_set_geometry(ranges,NULL)
+ranges <- as.data.frame(lapply(ranges,as.numeric))
+ranges[is.na(ranges)] <- 0
+
+#Calculate sum of children in complete age range of the school
+all_students <- sapply(seq_len(nrow(ranges)), function(i) sum(ranges[i, ranges$low_column[i]:ranges$high_column[i]]))
+ranges$all_students <- all_students
+
+#calculate sum of 16-18 year olds in each LSOA
+ranges$sixteen_18 <- ranges$X16 + ranges$X17 + ranges$X18
+
+#Now see what portion of students are 16-18 year olds
+ranges$proportion <- ranges$sixteen_18/ranges$all_students
+
+#Now we want to add this column to our flow data
+FinalCatchment$AdjPupil_count <- round(ranges$proportion*FinalCatchment$Pupil_count,0)
 
 #Merge geometry column from schools to flow dataframe
 CatchmentWithGeometry <- dplyr::left_join(FinalSchools,FinalCatchment,by="URN")
-
+#____________________________________________________________________________________________________________________________________________________________________________________
 #Simple table
 FlowsWithGeometry <- dplyr::select(CatchmentWithGeometry, c(Secondary_School_Name,LSOA_CODE, Pupil_count,geometry))
 
