@@ -15,36 +15,31 @@ library(geojson)
 library(geojsonio)
 library(tmaptools)
 library(viridis)
+library(janitor)
+library(cowplot)
 
 #Reading in all schools basefile
 AllSchools <- read.csv(here::here("edubasealldata.csv"))
 
 
-#FILTERING OUT FOR 16_18 students
+#FILTERING OUT FOR 11_18 students
 
 #First, get all the schools that are operating (schools that are open (as of 2019))
 
 OpenSchools <- AllSchools %>% 
   dplyr::filter(str_detect(EstablishmentStatus..name., "Open"))
 
-hassixthform <- OpenSchools %>% 
-  dplyr::filter(OfficialSixthForm..code.==1)
 
-#filter by phase of education (16 plus and all through)
-sixteenplus <- OpenSchools %>% 
-  dplyr::filter(str_detect(PhaseOfEducation..name.,"16 plus|All-through"))
-
-#Get secondary schools that have greater than 16 as statutory high age
-SecondarySchools <- OpenSchools %>% 
-  dplyr::filter(str_detect(PhaseOfEducation..name.,"Secondary")) %>% 
-  dplyr::filter(StatutoryHighAge > 16)
+#filter by phase of education (Secondary, 16 plus, and all through, and middle-deemed seocndary)
+elevenplus <- OpenSchools %>% 
+  dplyr::filter(str_detect(PhaseOfEducation..name.,"Secondary|16 plus|All-through|Middle deemed secondary"))
 
 #Get colleges
 Colleges <- OpenSchools %>% 
   dplyr::filter(str_detect(EstablishmentTypeGroup..name.,"Colleges"))
 
-#Merging these three to get all the schools i want to look at                
-UK16plus <- rbind(SecondarySchools,sixteenplus,hassixthform,Colleges) %>% 
+#Merging these two to get all the schools i want to look at and remove duplicates                
+UK11plus <- rbind(elevenplus,Colleges) %>% 
   distinct()
 
 #Now filter for LONDON
@@ -70,10 +65,6 @@ LSOA <- st_read(here::here("statistical-gis-boundaries-london/statistical-gis-bo
 #Remove points outside of London
 LondonSchools_sf <- LondonSchools_sf[LSOA,]
 
-
-st_crs(LondonSchools_sf)
-st_crs(LSOA)
-
 #check to see that we're looking at the right thing
 tmap_mode("view")
 tm_shape(LSOA) +
@@ -92,19 +83,18 @@ FinalSchools <- filter(LondonSchools_sf, URN %in% CatchmentDistinct)
 
 tmap_mode("view")
 tm_shape(LSOA) +
-  tm_polygons(col = NA, alpha = 0.5) +
+  tm_polygons(col = NA, alpha = 0.5, id="LSOA11NM") +
   tm_shape(LondonSchools_sf) +
-  tm_dots(col = "green")+
+    tm_dots(col = "green",id="EstablishmentName")+
   tm_shape(FinalSchools) + 
-  tm_dots(col="blue")
+    tm_dots(col="blue",id="EstablishmentName")
 
 #Filter the catchment data to only the ones we want
 URNs <- unique(FinalSchools$URN)
 
-#Filter out points that are not within LSOA shapefile
+#Filter out LSOAs that are not within LSOA shapefile
 LSOAs <- unique(LSOA$LSOA11CD)
-FinalCatchment <- subset(Catchment, ï..Secondary_School_URN %in% URNs)
-FinalCatchment <- subset(FinalCatchment, LSOA_CODE %in% LSOAs)
+FinalCatchment <- subset(Catchment, ï..Secondary_School_URN %in% URNs) %>%  subset(., LSOA_CODE %in% LSOAs)
 
 #Cleaning the data (remove unecessary columns):
 FinalCatchment <- dplyr::select(FinalCatchment, -c(Secondary2LSOA_Flow_No.)) %>% 
@@ -145,15 +135,15 @@ ranges$sixteen_18 <- ranges$X16 + ranges$X17 + ranges$X18
 #Now see what portion of students are 16-18 year olds
 ranges$proportion <- ranges$sixteen_18/ranges$all_students
 
-#Now we want to add this column to our flow data
-FinalCatchment$AdjPupil_count <- round(ranges$proportion*FinalCatchment$Pupil_count,0)
+#Now we want to add this column to our flow data -  round so there's at least 1
+FinalCatchment$AdjPupil_count <- ceiling(ranges$proportion*FinalCatchment$Pupil_count)
 
-#Merge geometry column from schools to flow dataframe
+#Merge geometry column from schools to flow dataframe -
 CatchmentWithGeometry <- dplyr::left_join(FinalSchools,FinalCatchment,by="URN")
 #____________________________________________________________________________________________________________________________________________________________________________________
+#                             ORGIN DESTINATION LINES
 #Simple table
-FlowsWithGeometry <- dplyr::select(CatchmentWithGeometry, c(Secondary_School_Name,LSOA_CODE, Pupil_count,geometry))
-
+FlowsWithGeometry <- dplyr::select(CatchmentWithGeometry, c(Secondary_School_Name,LSOA_CODE, Pupil_count, AdjPupil_count,geometry))
 
 #Rename column
 LSOA <- LSOA %>% rename(LSOA_CODE="LSOA11CD")
@@ -176,20 +166,13 @@ library(stplanr)
 #Get the travel lines
 travel_lines <- od2line(flow = FlowsWithGeometry, zones = zones)
 #function for line widths as a proportion of the pupil count
-tmap_mode("view")
-tm_shape(travel_lines)+
-  tm_lines(col="black",lwd = 0.1)+
-  tm_shape(FinalSchools) + 
-  tm_dots(col="red",size=0.001)
- 
 
-tmap_mode("view")
 
-tmaptools::palette_explorer()
+tmaptoolstm_shape(FinalSchools) +::palette_explorer()
 tm_shape(LSOA) +
   tm_polygons(col = NA, alpha = 0.5, lwd=0.1)+
 tm_shape(travel_lines) +
-  tm_lines(palette = "plasma", breaks = c(0, 5, 10, 20, 40, 100, 200),
+  tm_lines(palette = "plasma", breaks = c(0, 5, 10, 20, 40, 100,200),
            lwd = "Pupil_count",
            scale = 9,
            title.lwd = "Number of pupils",
@@ -216,15 +199,42 @@ Sums_LSOA <- st_set_geometry(travel_lines,NULL) %>%
   dplyr::select(., c(LSOA_CODE,Pupil_count,total_distance)) %>% group_by(LSOA_CODE) %>% summarize_all(sum)
 Sums_LSOA <- transform(Sums_LSOA, average_distance = (total_distance / Pupil_count)/1000)
 
-#Plot distribution of distances
+#Plot distribution of distances - all students
 
 total_students %>%
   ggplot( aes(x=distances)) +
   geom_histogram(bins=100, fill='skyblue', color='#69b3a2') + scale_x_log10()+
   ggtitle("School travel distances in London per Student")+
+  geom_vline(xintercept = 4823)+
   xlab("Euclidian Travel Distance (m)")+
   ylab("Count")
   #Add some summary statistics
+
+##------------------------Get walking routes------------------------------------
+library(osrm)
+#reproject travel lines geometry to wsg84
+travel_lines_transformed <- st_transform(travel_lines, 4326)
+#try with small sample
+desire_lines <- travel_lines_transformed[2:200, ]
+library(tictoc)
+tic("total")
+routes <- route(
+  l = desire_lines,
+  route_fun = osrmRoute,
+  returnclass = "sf")
+toc()
+
+
+tm_shape(routes) +
+  tm_lines(palette = "plasma", breaks = c(0, 5, 10, 20, 40, 100,200),
+           lwd = "Pupil_count",
+           scale = 9,
+           title.lwd = "Number of pupils",
+           alpha = 0.6,
+           col = "Pupil_count",
+           title = "Pupil Count") + 
+  tm_shape(FinalSchools)+
+  tm_dots(col="red",size=0.01,id="EstablishmentName")
 
 #------------------ GET QUANTILE BREAKS ----------------------
 #First let's round average distance to 1 decimal place
@@ -240,7 +250,6 @@ Sums_LSOA<- mutate(Sums_LSOA, deciles = cut(average_distance_round, dbreaks,c(1,
 
 df <- round(Sums_LSOA$average_distance,1)
 
-library(grDevices)
 
 colours <- get_brewer_pal("RdYlGn", n = 10)
 
@@ -282,7 +291,6 @@ tm_shape(LSOA_with_average) +
   tm_polygons(col = "decile", title="Average Distance to School (km)", alpha = 0.9, lwd=0.1)
 
 #Do a ggplot with histogram as legend
-palette_explorer()
 
 #add decile breaks to sf object
 LSOA_with_average<- mutate(LSOA_with_average, deciles = cut(average_distance, breaks$brks))
@@ -309,6 +317,53 @@ Final <- Distance_deciles + coord_sf(xlim = c(502500, 591956.7), ylim = c(145850
 #and plot
 Final
 
+#---------------------------BIVARIATE MAP (MEDIAN INCOME AND DISTRIBUTION)--------------------------------------------------
+library(biscale)
+
+#Load income data and filter for London
+Income <- read.csv(here::here("incomeestimates.csv")) %>% 
+  dplyr::filter(str_detect(Local.authority.code, "^E09")) %>% 
+  clean_names() %>% 
+  rename(MSOA11CD="msoa_code") %>% 
+  rename(income="net_annual_income_after_housing_costs_u_fffd") 
+
+#Make a newdata table with just MSOA code and Income
+Income <- dplyr::select(Income,MSOA11CD,income)
+Income$income <- as.numeric(gsub("\\,", "",Income$income))
+
+#Merge to LSOA with average
+LSOA_dist_inc <- dplyr::left_join(LSOA_with_average, Income, by = "MSOA11CD")
+#We want to remove the NA LSOAs because they will cause problems when plotting
+#create classes
+classes <- LSOA_dist_inc %>% bi_class(., x = average_distance, y = income, style = "fisher", dim = 3) %>% 
+  drop_na()
+
+#Map
+map <- ggplot() +
+  geom_sf(data = classes, mapping = aes(fill = bi_class), color = NA, size = 0.1, show.legend = FALSE) +
+  bi_scale_fill(pal = "Brown", dim = 3) +
+  bi_theme()
+bi_legend()
+legend <- bi_legend(pal = "Brown",
+                    dim = 3,
+                    xlab = "Higher Travel Distance",
+                    ylab = "Higher Income",
+                    size = 8)
+
+legend
+
+# combine map with legend
+finalPlot <- ggdraw() +
+  draw_plot(map, 0, 0, 1, 1) +
+  draw_plot(legend, x=0.65, .1, 0.4, 0.4,scale=1)
+
+draw_plot
+finalPlot
+
+#https://github.com/grssnbchr/bivariate-maps-ggplot2-sf/blob/master/analysis/index.Rmd"
+
+
+sapply(LSOA_dist_inc)
 #Z score normalisation of different factors: income, cycle infrastructure? Other factors?
 #Check statutory walking distance?
   
