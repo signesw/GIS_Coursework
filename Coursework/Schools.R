@@ -352,6 +352,8 @@ legend <- bi_legend(pal = "Brown",
 
 legend
 
+library(cowplot)
+
 # combine map with legend
 finalPlot <- ggdraw() +
   draw_plot(map, 0, 0, 1, 1) +
@@ -366,4 +368,8 @@ finalPlot
 sapply(LSOA_dist_inc)
 #Z score normalisation of different factors: income, cycle infrastructure? Other factors?
 #Check statutory walking distance?
+
+#Statutory walking age - look at the ones that are just below it? -- look a average walking speeds and calculate walking times
+
+# Look into developing an index? - how can I then incorporate LSOAs into it? --> maybe first identify areas and then look at road safety or something?
   
