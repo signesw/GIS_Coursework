@@ -271,7 +271,6 @@ histogram_legend <- histogram_legend +
                      limits = c(0, 250)) + 
   scale_x_continuous("Euclidian Travel Distance (km)", expand = c(0,0),breaks=seq(0,12,1))
 
-
 histogram_legend
 
 palette_explorer()

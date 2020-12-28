@@ -73,12 +73,12 @@ map <- ggplot(data=LSOA_dist_inc)+
     color = "white",
     size = 0.5) +
   # add titles
-  labs(x = NULL,
-       y = NULL,
-       title = "London's school travel distances and income",
-       subtitle = paste0("Average yearly income and average school travel distances",
-                         " for London children ages 11-18"),
-       caption = NA) +
+  #labs(x = NULL,
+       #y = NULL,
+       #title = "London's school travel distances and income",
+       #subtitle = paste0("Average yearly income and average school travel distances",
+                         #" for London children ages 11-18"),
+       #caption = NA) +
   # add the theme
   theme_map()
 
@@ -98,19 +98,23 @@ legend <- ggplot() +
       fill = fill)
   ) +
   scale_fill_identity() +
-  labs(x = "Higher distance ⟶️",
-       y = "Higher income ⟶️") +
+  labs(x = "Greater distance ⟶️" ,
+       y = "⟵ Lower income️") +
   theme_map() +
   # make font small enough and rotate y label
   theme(axis.title = element_text(size = 6)
   ) +
-  theme(axis.title.y = element_text(angle=90))+
-  theme(axis.title.x=element_text(vjust=30)) +
+  theme(axis.title.y = element_text(angle=90,vjust=1))+
+  theme(axis.title.x=element_text(vjust=40)) +
   # make it square
   coord_fixed()
 legend
 
 
-ggdraw() +
+Bivariate <- ggdraw() +
   draw_plot(map, 0, 0, 1, 1) +
-  draw_plot(legend, 0.05, 0.075, 0.2, 0.2)
+  draw_plot(legend, 0.05, 0.03, 0.25, 0.25)
+
+Bivariate 
+
+save_plot("bivariate.jpg",Bivariate)
