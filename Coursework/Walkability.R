@@ -39,51 +39,43 @@ LSOA_index %>%
   xlab("Z-score Euclidian Travel Distance (km)")+
   ylab("Count")
 
+LSOA_index$zdist[LSOA_index$zdist > 3] <- 3
+LSOA_index$zdist[LSOA_index$zdist < -3] <- -3
+
 #_--------------------------- ROAD SAFETY ---------------------------------------------------
+#Now we want to look at road safety for pedestrians and cyclists
+accident_indicator <- read.csv(here::here("underlying_indicators.csv")) %>% janitor::clean_names() %>%
+                      dplyr::select(.,c("lsoa_code_2011","road_traffic_accidents_indicator"))
 
-## Now we want to look at traffic accidents - Load 2019 road casualty data supplied by tfl https://tfl.gov.uk/cdn/static/cms/documents/2019-gla-data-extract-casualty.csv
-#casualties <- read.csv(here::here("2019-gla-data-extract-casualty.csv")) %>% janitor::clean_names(.)
-accidents <-read.csv(here::here("road-casualties-severity-lsoa-msoa-ward.csv")) %>% janitor::clean_names()
-
-colnms=c("x2010_total","x2011_total","x2012_total","x2013_total","x2014_total","x2015_total","x2016_total","x2017_total","x2018_total")
-accidents[,colnms] <- lapply(accidents[,colnms], as.numeric) 
-accidents[is.na(accidents)] <- 0
-accidents$average <- rowSums(accidents[,colnms])/9
-
-accidents %>%
-  ggplot( aes(x=average)) +
-  geom_histogram(bins=100, fill='skyblue', color='#69b3a2') + scale_x_log10()+
-  ggtitle("Z-score of log-transformed data")+
-  xlab("road accidents by LSOA")+
-  ylab("Count")
-
-#Let's map average accidents per LSOA
-#First let's join accident data to our geomtery
-accidents <- data.frame("LSOA_CODE"=accidents$lsoa_code, "accidents"=accidents$average)
-LSOA_index <-dplyr::left_join(LSOA_index,accidents,by="LSOA_CODE")
-
-#Log transformation of accidents
-LSOA_index$logaccident = log(LSOA_index$accidents)
-LSOA_index %>%
-  ggplot( aes(x=accidents)) +
+accident_indicator %>%
+  ggplot( aes(x=road_traffic_accidents_indicator)) +
   geom_histogram(bins=100, fill='skyblue', color='#69b3a2') + scale_x_log10()+
   ggtitle("Average number of road accident casualties between 2010-2018, by LSOA")+
-  geom_vline(xintercept = mean(LSOA_index$accidents),linetype="dashed")+
-  geom_vline(xintercept = median(LSOA_index$accidents),linetype="solid")+
-  xlab("Log of average number of casulaties")+
-  ylab("Count")
+  #geom_vline(xintercept = mean(airindex$air_quality_indicator),linetype="dashed")+
+  #geom_vline(xintercept = median(airindex$air_quality_indicator),linetype="solid")+
+  xlab("Road traffic accidents indicator")+
+  ylab("Count")                       
 
-#z-score normalisation
-LSOA_index$zacc = scale(LSOA_index$logaccident,center=TRUE,scale=TRUE)
+#Add to index shapefile
+LSOA_index <-dplyr::left_join(LSOA_index,accident_indicator,by=c("LSOA_CODE"="lsoa_code_2011"))
+
+#Calculate log and z score
+LSOA_index$logaccident = log(LSOA_index$road_traffic_accidents_indicator)
+LSOA_index$zaccident = scale(LSOA_index$logaccident,center=TRUE,scale=TRUE)
+  
+#Deal with outliers
+LSOA_index$zaccident[LSOA_index$zaccident > 3] <- 3
+LSOA_index$zaccident[LSOA_index$zaccident < -3] <- -3
 
 LSOA_index %>%
-  ggplot( aes(x=zacc)) +
+  ggplot( aes(x=zaccident)) +
   geom_histogram(bins=100, fill='skyblue', color='#69b3a2') + #scale_x_log10()+
   ggtitle("Average number of road accident casualties between 2010-2018, by LSOA")+
-  geom_vline(xintercept = mean(LSOA_index$zacc),linetype="dashed")+
-  geom_vline(xintercept = median(LSOA_index$zacc),linetype="solid")+
-  xlab("z-score of Log of average number of casulaties")+
-  ylab("Count")
+  #geom_vline(xintercept = mean(airindex$air_quality_indicator),linetype="dashed")+
+  #geom_vline(xintercept = median(airindex$air_quality_indicator),linetype="solid")+
+  xlab("Road traffic accidents indicator")+
+  ylab("Count")                       
+
 
 #--------------------------------------AIR POLLUTION---------------------------------------------------------------
 # We will use air quality index score calculated as part of the indices of multiple deprivation from 2019
@@ -109,20 +101,17 @@ LSOA_index$zairquality = scale(LSOA_index$air_quality_indicator,center=TRUE,scal
 
 #-------------------------------Access to cars--------------------------------------------
 #cars per household from 2011 census
-lsoa_atlas <- read.csv(here::here("lsoa-data-old-boundaries-DataSheet.csv")) %>% janitor::clean_names()
-
-no_cars <- lsoa_atlas %>% dplyr::select(.,c("lower_super_output_area","car_or_van_availability_2011_no_cars_or_vans_in_household"))
-#remove lsoa atlas to free up space
-rm(lsoa_atlas)
+no_cars <- read.csv(here::here("lsoa-data.csv")) %>% janitor::clean_names() %>% 
+          dplyr::select(.,c("lower_super_output_area","car_or_van_availability_no_cars_or_vans_in_household_2011_2"))
 
 #Check ditribution
 
 no_cars %>%
-  ggplot( aes(x=car_or_van_availability_2011_no_cars_or_vans_in_household)) +
+  ggplot( aes(x=car_or_van_availability_no_cars_or_vans_in_household_2011_2)) +
   geom_histogram(bins=100, fill='skyblue', color='#69b3a2') +#scale_x_log10()+
   ggtitle("Percentage of households with no car")+
-  geom_vline(xintercept = mean(no_cars$car_or_van_availability_2011_no_cars_or_vans_in_household),linetype="dashed")+
-  geom_vline(xintercept = median(no_cars$car_or_van_availability_2011_no_cars_or_vans_in_household),linetype="solid")+
+  geom_vline(xintercept = mean(no_cars$car_or_van_availability_no_cars_or_vans_in_household_2011_2),linetype="dashed")+
+  geom_vline(xintercept = median(no_cars$car_or_van_availability_no_cars_or_vans_in_household_2011_2),linetype="solid")+
   xlab("% of households with no car")+
   ylab("Count") 
 
@@ -130,7 +119,7 @@ no_cars %>%
 #first lets add it to index 
 
 LSOA_index <-dplyr::left_join(LSOA_index,no_cars,by=c("LSOA_CODE"="lower_super_output_area"))
-LSOA_index$zcars = scale(LSOA_index$car_or_van_availability_2011_no_cars_or_vans_in_household,center=TRUE,scale=TRUE)
+LSOA_index$zcars = scale(LSOA_index$car_or_van_availability_no_cars_or_vans_in_household_2011_2,center=TRUE,scale=TRUE)
 
 LSOA_index %>%
   ggplot( aes(x=zcars)) +
@@ -142,31 +131,64 @@ LSOA_index %>%
   ylab("Count") 
 #-----------------------------Combination of factors--------------------------------------------------------
 #First, let's assign weights
-#Distance: 25%
-#Air quality= 25%LL
-#Road accidents= 25%
-#Access to cars = 25%
+#Distance: 35%
+#Air quality= 15%LL
+#Road accidents= 15%
+#Access to cars = 35%
 
-LSOA_index$zdist <- LSOA_index$zdist*0.25
-LSOA_index$zairquality <- LSOA_index$zairquality*0.25
-LSOA_index$zacc<- LSOA_index$zacc*0.25
-LSOA_index$zcars<- LSOA_index$zacc*0.25
+LSOA_index$indexdist <- LSOA_index$zdist*0.35
+LSOA_index$indexairquality <- LSOA_index$zairquality*0.15
+LSOA_index$indexacc<- LSOA_index$zaccident*0.15
+LSOA_index$indexcars<- LSOA_index$zcars*0.35
 
 
 #Now add the three together to make final index
-LSOA_index$final_index <- LSOA_index$zdist +
-  LSOA_index$zairquality +
-  LSOA_index$zacc+
-  LSOA_index$zcars
+LSOA_index$final_index <- LSOA_index$indexdist +
+  LSOA_index$indexairquality +
+  LSOA_index$indexacc+
+  LSOA_index$indexcars
 
 # Let's map it
 
 RelianceIndex <- ggplot() +
   geom_sf(data = LSOA_index, aes(fill = final_index),color=NA) +
   geom_sf(data = Boroughs, fill = "transparent",color = "gray",size = 0.5)+ 
-  scale_fill_gradient(high = "red", low = "white", guide = "colorbar",breaks=c(-2,0,2),labels=c("Low","Medium","High")) +
+  scale_fill_gradient2(high = "red", low = "blue", guide = "colorbar",breaks=c(-2,0,2),labels=c("Low","Medium","High")) +
   labs(fill = "Dependence on Public Transport")+
   theme_map()
 
 RelianceIndex
-palette_explorer()
+
+
+#--------------------------- Plotting the indices by themselves--------------------------------
+Distance <- ggplot() +
+  geom_sf(data = LSOA_index, aes(fill = zdist), color=NA) +
+  geom_sf(data = Boroughs, fill = "transparent",color = "white",size = 0.5)+ 
+  scale_fill_gradient(high = "red", low = "white", guide = "colorbar",breaks=c(-2,0,2)) +
+  labs(fill = "Distance to School")+
+  theme_map()
+Distance
+
+Accidents <- ggplot() +
+  geom_sf(data = LSOA_index, aes(fill = zaccident), color=NA) +
+  geom_sf(data = Boroughs, fill = "transparent",color = "white",size = 0.5)+ 
+  scale_fill_gradient(high = "blue", low = "white", guide = "colorbar",breaks=c(-2,0,2)) +
+  labs(fill = "Road casualties involving cyclists and pedestrians")+
+  theme_map()
+Accidents
+
+Air <- ggplot() +
+  geom_sf(data = LSOA_index, aes(fill = zairquality), color=NA) +
+  geom_sf(data = Boroughs, fill = "transparent",color = "white",size = 0.5)+ 
+  scale_fill_gradient(high = "#024a28", low = "white", guide = "colorbar",breaks=c(-2,0,2)) +
+  labs(fill = "Air pollution")+
+  theme_map()
+Air
+
+Nocars <- ggplot() +
+  geom_sf(data = LSOA_index, aes(fill = zcars), color=NA) +
+  geom_sf(data = Boroughs, fill = "transparent",color = "white",size = 0.5)+ 
+  scale_fill_gradient(high = "#470107", low = "white", guide = "colorbar") +
+  labs(fill = "Households without access to car")+
+  theme_map()
+Nocars
