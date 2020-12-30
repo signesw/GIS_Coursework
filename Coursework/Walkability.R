@@ -2,7 +2,9 @@
 #the option for walking or cycling to school is
 library(dplyr)
 library(dprep)
-LSOA_index <- LSOA_dist_inc %>% dplyr::select("LSOA_CODE","average_distance")
+library(ggpubr)
+LSOA_index <- dplyr::select(LSOA_with_average,c("LSOA_CODE","average_distance"))
+
 
 
 #check distribution of each factor
@@ -152,11 +154,13 @@ LSOA_index$final_index <- LSOA_index$indexdist +
 
 RelianceIndex <- ggplot() +
   geom_sf(data = LSOA_index, aes(fill = final_index),color=NA) +
-  geom_sf(data = Boroughs, fill = "transparent",color = "gray",size = 0.5)+ 
-  scale_fill_gradient2(high = "red", low = "blue", guide = "colorbar",breaks=c(-2,0,2),labels=c("Low","Medium","High")) +
-  labs(fill = "Dependence on Public Transport")+
-  theme_map()
+  geom_sf(data = Boroughs, fill = "transparent",color = "white",size = 0.5)+ 
+  scale_fill_gradient2(high = "#8f0114", low = "#080185",mid="lightgray", guide = "colorbar") +
+  labs(fill = "Dependence on \nPublic Transport \nIndex")+
+  theme_map()+
+  theme(legend.title = element_text(color = "black", size = 10))
 
+save_plot("relaiance_index.png",RelianceIndex)
 RelianceIndex
 
 
@@ -164,31 +168,45 @@ RelianceIndex
 Distance <- ggplot() +
   geom_sf(data = LSOA_index, aes(fill = zdist), color=NA) +
   geom_sf(data = Boroughs, fill = "transparent",color = "white",size = 0.5)+ 
-  scale_fill_gradient(high = "red", low = "white", guide = "colorbar",breaks=c(-2,0,2)) +
-  labs(fill = "Distance to School")+
-  theme_map()
+  scale_fill_gradient(high = "#470137", low = "white", guide = "colorbar",breaks=c(-2,0,2)) +
+  labs(fill = "Z-Score")+
+  theme_map()+ theme(legend.title = element_text(color = "black", size = 10))
 Distance
 
 Accidents <- ggplot() +
   geom_sf(data = LSOA_index, aes(fill = zaccident), color=NA) +
   geom_sf(data = Boroughs, fill = "transparent",color = "white",size = 0.5)+ 
-  scale_fill_gradient(high = "blue", low = "white", guide = "colorbar",breaks=c(-2,0,2)) +
-  labs(fill = "Road casualties involving cyclists and pedestrians")+
-  theme_map()
+  scale_fill_gradient(high = "#040147", low = "white", guide = "colorbar",breaks=c(-2,0,2)) +
+  labs(fill = "Z-score")+
+  theme_map()+ theme(legend.title = element_text(color = "black", size = 10))
 Accidents
 
 Air <- ggplot() +
   geom_sf(data = LSOA_index, aes(fill = zairquality), color=NA) +
   geom_sf(data = Boroughs, fill = "transparent",color = "white",size = 0.5)+ 
   scale_fill_gradient(high = "#024a28", low = "white", guide = "colorbar",breaks=c(-2,0,2)) +
-  labs(fill = "Air pollution")+
-  theme_map()
+  labs(fill = "Z-Score")+
+  theme_map()+ theme(legend.title = element_text(color = "black", size = 10))
 Air
 
 Nocars <- ggplot() +
   geom_sf(data = LSOA_index, aes(fill = zcars), color=NA) +
   geom_sf(data = Boroughs, fill = "transparent",color = "white",size = 0.5)+ 
-  scale_fill_gradient(high = "#470107", low = "white", guide = "colorbar") +
-  labs(fill = "Households without access to car")+
-  theme_map()
+  scale_fill_gradient(high = "#470107", low = "white", guide = "colorbar",breaks=c(-2,0,2)) +
+  labs(fill = "Z-Score")+
+  theme_map() + theme(legend.title = element_text(color = "black", size = 10))
+
 Nocars
+
+labels <- c("School Distance", "Pedestrian/Cyclist Safety","Air pollution","Households without Cars")
+#Plot them together 
+Variables <- plot_grid(
+  Distance,Accidents, Air, Nocars,
+  labels = "AUTO",
+  label_size = 12,
+  label_x = 0, label_y = 0,
+  hjust = -0.5, vjust = -0.5
+)
+
+Variables
+save_plot("variables.png",Variables,ncol=2,nrow=2)

@@ -52,10 +52,7 @@ LondonSchools <- UK16plus %>%
 LondonSchools_sf <- LondonSchools %>% 
   st_as_sf(., coords = c("Easting", "Northing")) %>% 
   st_set_crs(27700)
-#Plot
-ggplot() +
-  geom_sf(data = LondonSchools_sf) +
-  ggtitle("Map of School Locations within London")
+
 
 #Now load London LSOA shapefile
 LSOA <- st_read(here::here("statistical-gis-boundaries-london/statistical-gis-boundaries-london/ESRI/LSOA_2011_London_gen_MHW.shp")) %>% 
