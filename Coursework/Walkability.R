@@ -3,7 +3,7 @@
 library(dplyr)
 library(dprep)
 library(ggpubr)
-LSOA_index <- dplyr::select(LSOA_with_average,c("LSOA_CODE","average_distance"))
+LSOA_index <- dplyr::select(LSOA_with_average,c("LSOA_CODE","MSOA11CD","average_distance"))
 
 
 
