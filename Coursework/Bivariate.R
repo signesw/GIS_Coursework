@@ -88,11 +88,12 @@ Boroughs <- st_read(here::here("statistical-gis-boundaries-london/statistical-gi
   st_transform(27700)
 
 
-map <- ggplot(data=LSOA_bivariate)+
+map <- ggplot()+
   # use the same dataset a
   # first: draw the relief
   # color municipalities according to their distance / income combination
-  geom_sf(aes(fill = fill),color = NA) +
+  geom_sf(data=LSOA,fill="darkgray",color=NA)+
+  geom_sf(data=LSOA_bivariate,aes(fill = fill),color = NA) +
   scale_fill_identity() +
   # use thicker white stroke for Boroughs
   geom_sf(data = Boroughs,
