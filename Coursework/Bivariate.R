@@ -109,7 +109,7 @@ map <- ggplot(data=LSOA_bivariate)+
   # add the theme
   theme_map()
 
-map+coord_sf(xlim = c(500000, 560000.7), ylim = c(145850.8, 201500))
+basemap <- ggplot()+geom_sf(data=LSOA,aes(fill="gray"))+theme_map()
 
 #make the legend
 # separate the groups
@@ -127,7 +127,7 @@ legend <- ggplot() +
       fill = fill)
   ) +
   scale_fill_identity() +
-  labs(x = "Greater reliance \non public transport ⟶️" ,
+  labs(x = "Greater dependence \non public transport ⟶️" ,
        y = "⟵ Lower income️") +
   theme_map() +
   # make font small enough and rotate y label
@@ -141,6 +141,7 @@ legend
 
 
 Bivariate <- ggdraw() +
+  #draw_plot(basemap, 0, 0, 1, 1) +
   draw_plot(map, 0, 0, 1, 1) +
   draw_plot(legend, 0, 0.03, 0.3, 0.3)
 
