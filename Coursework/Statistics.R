@@ -93,8 +93,11 @@ IMD <- ggplot()+geom_sf(data=Boroughs,fill="gray",color="white")+theme_map()+
   labs(fill="IMD \nPercentile")+theme(legend.text=element_text(size=8))+
   theme(legend.title=element_text(size=10))
 
-BAME <- BAME + theme(legend.key.size = unit(0.3, "cm"),legend.key.width = unit(0.5,"cm"),legend.title=element_text(size=10),legend.text=element_text(size=8))
-IMD <- IMD+ theme(legend.key.size = unit(0.2, "cm"),legend.key.width = unit(0.5,"cm"))
+BAME <- BAME +  theme(legend.key.size = unit(0.3, "cm"),legend.key.width = unit(0.5,"cm"),legend.title=element_text(size=10),legend.text=element_text(size=8))
+IMD+ theme(legend.key.size = unit(0.2, "cm"),legend.key.width = unit(0.5,"cm")) +
+  annotate( "text", x = 560000, y = 160000, label = "20% Most Dependent: 38%",size=3)
+IMD + coord_sf(xlim = c(502500, 591956.7), ylim = c(145850.8, 201500))
+IMD
 
 Proportions <-  plot_grid(
   IMD,BAME,
@@ -104,5 +107,5 @@ Proportions <-  plot_grid(
   hjust = -0.5, vjust = -0.5
 )
 
-Proportions
+Proportions + draw_label("Draft", color = "black", size = 10)
 save_plot("proportions.png",Proportions,ncol=2,nrow=1)

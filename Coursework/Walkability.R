@@ -132,6 +132,9 @@ LSOA_index %>%
   xlab("% of households with no car")+
   ylab("Count") 
 #-----------------------------Combination of factors--------------------------------------------------------
+Boroughs <- st_read(here::here("statistical-gis-boundaries-london/statistical-gis-boundaries-london/ESRI/London_Borough_Excluding_MHW.shp")) %>% 
+  st_transform(27700)
+
 #First, let's assign weights
 #Distance: 35%
 #Air quality= 15%LL

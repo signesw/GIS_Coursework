@@ -140,7 +140,7 @@ CatchmentWithGeometry <- dplyr::left_join(FinalSchools,FinalCatchment,by="URN")
 #____________________________________________________________________________________________________________________________________________________________________________________
 #                             ORGIN DESTINATION LINES
 #Simple table
-FlowsWithGeometry <- dplyr::select(CatchmentWithGeometry, c(Secondary_School_Name,LSOA_CODE, Pupil_count, AdjPupil_count,geometry))
+FlowsWithGeometry <- dplyr::select(CatchmentWithGeometry, c(Secondary_School_Name,LSOA_CODE, Pupil_count,geometry))
 
 #Rename column
 LSOA <- LSOA %>% rename(LSOA_CODE="LSOA11CD")
@@ -212,7 +212,7 @@ library(osrm)
 #reproject travel lines geometry to wsg84
 travel_lines_transformed <- st_transform(travel_lines, 4326)
 #try with small sample
-desire_lines <- travel_lines_transformed[2:200, ]
+desire_lines <- travel_lines_transformed[0:25824, ]
 library(tictoc)
 tic("total")
 routes <- route(
@@ -221,6 +221,7 @@ routes <- route(
   returnclass = "sf")
 toc()
 
+st_write(routes, "routes.shp")
 
 tm_shape(routes) +
   tm_lines(palette = "plasma", breaks = c(0, 5, 10, 20, 40, 100,200),
@@ -312,6 +313,8 @@ Final <- Distance_deciles + coord_sf(xlim = c(502500, 591956.7), ylim = c(145850
     xmax=591956.7)
 #and plot
 Final
+
+save_plot("DistancePlot.png",Final)
 
 #---------------------------BIVARIATE MAP (MEDIAN INCOME AND DISTRIBUTION)--------------------------------------------------
 library(biscale)
