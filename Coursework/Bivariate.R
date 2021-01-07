@@ -1,4 +1,6 @@
 #-------------------INCOME----------------------------------------------
+library(janitor)
+
 #Load income data and filter for London
 Income <- read.csv(here::here("incomeestimates.csv")) %>% 
   dplyr::filter(str_detect(Local.authority.code, "^E09")) %>% 
@@ -18,10 +20,9 @@ LSOA_index <- dplyr::left_join(LSOA_index, Income, by = "MSOA11CD")
 LSOA_index %>%
   ggplot( aes(x=income)) +
   geom_histogram(bins=100, fill='skyblue', color='#69b3a2') + #scale_x_log10()+
-  ggtitle("Percentage of households with no car")+
   geom_vline(xintercept = mean(LSOA_index$income),linetype="dashed")+
   geom_vline(xintercept = median(LSOA_index$income),linetype="solid")+
-  xlab("Average household income by LSOA(£)")+
+  xlab("Average household income by LSOA (£)")+
   ylab("Count") 
 
 #Drop NAs - these will cause problems when making the classes
@@ -149,3 +150,4 @@ Bivariate <- ggdraw() +
 Bivariate 
 
 save_plot("bivariate.png",Bivariate)
+rm(Bivariate)
