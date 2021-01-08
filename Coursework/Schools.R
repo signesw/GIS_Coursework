@@ -45,7 +45,23 @@ LondonSchools_sf <- LondonSchools %>%
 #Now load London LSOA shapefile
 LSOA <- st_read(here::here("statistical-gis-boundaries-london/statistical-gis-boundaries-london/ESRI/LSOA_2011_London_gen_MHW.shp")) %>% 
   st_transform(27700)
+#Load boroughs shapedfile too 
+Boroughs <- st_read(here::here("statistical-gis-boundaries-london/statistical-gis-boundaries-london/ESRI/London_Borough_Excluding_MHW.shp")) %>% 
+st_transform(27700)
 
+#Let's plot our Study Area
+study_area <- ggplot()+ geom_sf(data=LSOA, color="#696868",size=0.1,linetype = "solid", fill='#ede9e8')+
+          geom_sf(data=Boroughs,color="black",size=0.3,linetype = "solid", fill=NA)+
+          theme_map()+
+          annotation_scale(location = "bl")+
+          annotation_north_arrow(location = "tl", which_north = "true",
+                         height = unit(1, "cm"),
+                         width = unit(1, "cm"),
+                         pad_y = unit(0.1, "in"),
+                         style = north_arrow_fancy_orienteering)
+
+
+ggsave("study_area.png",study_area)
 
 #Remove points outside of London
 LondonSchools_sf <- LondonSchools_sf[LSOA,]
@@ -150,33 +166,7 @@ Sums_LSOA <- transform(Sums_LSOA, average_distance = (total_distance / Pupil_cou
 summarystats <- data.frame("stats"=c(median(total_students$distances),mean(total_students$distances)),
                            "Line"=c("Median","Mean"))
 
-totalstudents <- total_students %>%
-  ggplot( aes(x=distances)) +
-  geom_histogram(bins=100, fill='#470137', color='gray') + #scale_x_log10()+
-  geom_vline(data = summarystats, 
-             mapping = aes(xintercept=stats,
-                           color = Line,
-                           linetype=Line 
-                           ),
-             show.legend = T)+
-  xlab("Distance to School (km) per Student")+
-  ylab("Pupil Count")+
-  scale_y_continuous(expand = c(0,0),
-                     limits = c(0,65000))+
-  scale_color_manual(name = "Statistics", values = c(Median = "#6b0c1b", Mean = "#d1949e"))+
-  guides(color = guide_legend(override.aes = list(linetype = c('solid','dashed'))),
-         linetype = FALSE)
 
-logtotal <- total_students %>%
-  ggplot( aes(x=distances)) +
-  geom_histogram(bins=100, fill='#470137', color='gray') + scale_x_log10()+
-  xlab("Distance to School (km) per Student (plotted on log10 scale)")+
-  ylab("Pupil Count")+
-  scale_y_continuous(expand = c(0,0),
-                     limits = c(0,15000))
-
-save_plot("total_students.png",totalstudents,ncol=1,nrow=1)
-save_plot("total_students_log.png",logtotal,ncol=1,nrow=1)
 #Plot distribution of distances - per LSOA
 
 summarystats <- data.frame("stats"=c(median(Sums_LSOA$average_distance),mean(Sums_LSOA$average_distance)),
@@ -219,7 +209,7 @@ routes <- route(
   route_fun = osrmRoute,
   returnclass = "sf")
 toc()
-st_write(routes, "routes.shp")
+
 
 
 st_write(routes,"routes.geojson")
@@ -285,7 +275,7 @@ plt_routes <- ggplot()+
   theme_map()
 
 plt_routes
-
+rm(routes)
 ggsave("lines.png",plt_lines) 
 ggsave("routes.png", plt_routes)
 
@@ -313,7 +303,7 @@ lines_hist <- ggplot(data=Sums_LSOA,aes(x=average_distance)) +
                            linetype=Line 
              ),
              show.legend = T)+
-  xlab("Average Euclidian Distance to School (km)")+
+  xlab("Average Straight Line Distance to School (km)")+
   ylab("Count")+
   scale_y_continuous(expand = c(0,0),
                      limits = c(0,400))+
@@ -337,11 +327,19 @@ routes_hist <- ggplot(data=Sums_LSOA_routes,aes(x=average_distance)) +
   scale_y_continuous(expand = c(0,0),
                      limits = c(0,400))+
   scale_x_continuous(expand = c(0,0),
-                     limits = c(0,15))+
+                     limits = c(0,19))+
   scale_color_manual(name = "Statistics", values = c(Median = "#6b0c1b", Mean = "#d1949e"))+
   guides(color = guide_legend(override.aes = list(linetype = c('solid','dashed'))),
          linetype = FALSE)+
   theme_bw()
+
+#Get summary stats for the two types of distance
+summary(Sums_LSOA$average_distance)
+summary(Sums_LSOA_routes$average_distance)
+sd(Sums_LSOA$average_distance)
+sd(Sums_LSOA_routes$average_distance)
+var(Sums_LSOA$average_distance)
+var(Sums_LSOA_routes$average_distance)
 
 hists <- plot_grid(lines_hist, routes_hist, labels = "AUTO")
 save_plot("histograms.png",hists,base_asp=3.36)
@@ -378,7 +376,7 @@ histogram_legend <- Sums_LSOA_routes %>%
 histogram_legend <- histogram_legend + 
   scale_y_continuous("Count", expand = c(0, 0), breaks = seq(0, 300, 50), 
                      limits = c(0, 200)) + 
-  scale_x_continuous("Euclidian Travel Distance (km)", expand = c(0,0),breaks=seq(0,19,1))+
+  scale_x_continuous("Average Travel Distance (km)", expand = c(0,0),breaks=seq(0,19,1))+
   theme(axis.text=element_text(size=7))
 
 histogram_legend
@@ -397,8 +395,6 @@ tm_shape(LSOA_with_average) +
 
 #Do a ggplot with histogram as legend
 
-#add decile breaks to sf object
-LSOA_with_average<- mutate(LSOA_with_average, deciles = cut(average_distance, breaks$brks))
 
 legend <- ggplotGrob(histogram_legend)
 

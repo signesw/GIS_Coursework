@@ -3,7 +3,7 @@
 library(dplyr)
 library(dprep)
 library(ggpubr)
-LSOA_index <- dplyr::select(LSOA_with_average,c("LSOA_CODE","MSOA11CD","average_distance"))
+LSOA_index <- dplyr::select(LSOA_with_average,c("LSOA_CODE","MSOA11CD","LAD11CD","LAD11NM","average_distance"))
 
 
 
@@ -11,10 +11,11 @@ LSOA_index <- dplyr::select(LSOA_with_average,c("LSOA_CODE","MSOA11CD","average_
 dist <- LSOA_index %>%
   ggplot( aes(x=average_distance)) +
   geom_histogram(bins=100, fill='#470137', color='gray') + scale_x_log10()+
-  geom_vline(xintercept = mean(LSOA_index$average_distance),linetype="dashed")+
-  geom_vline(xintercept = median(LSOA_index$average_distance),linetype="solid")+
-  xlab("Euclidian Travel Distance (km)")+
+  xlab("Network Travel Distance (km)")+
   ylab("Count")
+
+dist
+
 
 LSOA_index$logdist <- log(LSOA_index$average_distance)
 
@@ -34,7 +35,7 @@ accidents <- accident_indicator %>%
   #ggtitle("Average number of road accident casualties between 2010-2018, by LSOA")+
   #geom_vline(xintercept = mean(airindex$air_quality_indicator),linetype="dashed")+
   #geom_vline(xintercept = median(airindex$air_quality_indicator),linetype="solid")+
-  xlab("Road traffic accidents per 1000 people")+
+  xlab("Road Traffic Accidents (per 1000 people)")+
   ylab("Count")                       
 
 #Add to index shapefile
@@ -60,7 +61,7 @@ air <- airindex %>%
   #ggtitle("Average number of road accident casualties between 2010-2018, by LSOA")+
   #geom_vline(xintercept = mean(airindex$air_quality_indicator),linetype="dashed")+
   #geom_vline(xintercept = median(airindex$air_quality_indicator),linetype="solid")+
-  xlab("Air quality indicator")+
+  xlab("Air Quality Indicator")+
   ylab("Count")                       
 
 #Data appears normally distributed, no need to transform
@@ -83,8 +84,10 @@ cars <- no_cars %>%
   #ggtitle("Percentage of households with no car")+
   #geom_vline(xintercept = mean(no_cars$car_or_van_availability_no_cars_or_vans_in_household_2011_2),linetype="dashed")+
   #geom_vline(xintercept = median(no_cars$car_or_van_availability_no_cars_or_vans_in_household_2011_2),linetype="solid")+
-  xlab("% of Households with no car")+
+  xlab("% of Households with No Car")+
   ylab("Count") 
+
+cars
 
 #Normally distributed, no need to transform - calcualte z score
 #first lets add it to index 
@@ -102,10 +105,10 @@ Boroughs <- st_read(here::here("statistical-gis-boundaries-london/statistical-gi
 #Road accidents= 15%
 #Access to cars = 35%
 
-LSOA_index$indexdist <- LSOA_index$zdist*0.35
-LSOA_index$indexairquality <- LSOA_index$zairquality*0.15
-LSOA_index$indexacc<- LSOA_index$zaccident*0.15
-LSOA_index$indexcars<- LSOA_index$zcars*0.35
+LSOA_index$indexdist <- LSOA_index$zdist*0.45
+LSOA_index$indexairquality <- LSOA_index$zairquality*0.10
+LSOA_index$indexacc<- LSOA_index$zaccident*0.20
+LSOA_index$indexcars<- LSOA_index$zcars*0.25
 
 
 #Now add the three together to make final index
@@ -116,12 +119,10 @@ LSOA_index$final_index <- LSOA_index$indexdist +
 
 LSOA_index %>%
   ggplot( aes(x=final_index)) +
-  geom_histogram(bins=100, fill='skyblue', color='#69b3a2') +#scale_x_log10()+
-  ggtitle("Percentage of households with no car")+
-  #geom_vline(xintercept = mean(no_cars$car_or_van_availability_2011_no_cars_or_vans_in_household),linetype="dashed")+
-  #geom_vline(xintercept = median(no_cars$car_or_van_availability_2011_no_cars_or_vans_in_household),linetype="solid")+
-  xlab("% of households with no car")+
-  ylab("Count") 
+  geom_histogram(bins=100, fill='skyblue', color='gray') +#scale_x_log10()+
+  xlab("Index of Dependence on Public Transportation")+theme_bw()+
+  ylab("Count")+
+  scale_y_continuous(expand = c(0, 0), limits=c(0,200))
 
 # Let's map it
 
@@ -133,19 +134,22 @@ RelianceIndex <- ggplot() +
   theme_map()+
   theme(legend.title = element_text(color = "black", size = 10))
 
+
 save_plot("relaiance_index.png",RelianceIndex)
 RelianceIndex
 
 
 #--------------------------- Plotting the indices by themselves--------------------------------
 #set aesthetics
-dist <- dist + scale_y_continuous(expand = c(0, 0), limits=c(0,250)) + theme_bw()
+dist <- dist + scale_y_continuous(expand = c(0, 0), limits=c(0,300)) + theme_bw()
 dist <- ggdraw(add_sub(dist, expression(paste("Plotted on log"[10]," scale")),size=9))
 accidents <- accidents + scale_y_continuous(expand = c(0, 0), limits=c(0,400)) + theme_bw()
 accidents <-ggdraw(add_sub(accidents, expression(paste("Plotted on log"[10]," scale")),size=9))
 air <- air + scale_y_continuous(expand = c(0, 0), limits=c(0,250)) + theme_bw()
-cars <- cars+ scale_y_continuous(expand = c(0, 0), limits=c(0,90)) + theme_bw()
+cars <- cars+ scale_y_continuous(expand = c(0, 0), limits=c(0,100)) + theme_bw()
 
+dist
+cars
 
 variables_hist <-  plot_grid(
     dist,accidents, air, cars,
@@ -157,6 +161,19 @@ variables_hist <-  plot_grid(
 
 variables_hist
 save_plot("variables_hist.png",variables_hist,ncol=2,nrow=2)
+
+#Get summary stats
+summary(LSOA_index$road_traffic_accidents_indicator)
+summary(LSOA_index$air_quality_indicator)
+summary(LSOA_index$car_or_van_availability_no_cars_or_vans_in_household_2011_2)
+
+sd(LSOA_index$road_traffic_accidents_indicator)
+sd(LSOA_index$air_quality_indicator)
+sd(LSOA_index$car_or_van_availability_no_cars_or_vans_in_household_2011_2)
+
+var(LSOA_index$road_traffic_accidents_indicator)
+var(LSOA_index$air_quality_indicator)
+var(LSOA_index$car_or_van_availability_no_cars_or_vans_in_household_2011_2)
 
 Distance <- ggplot() +
   geom_sf(data = LSOA_index, aes(fill = zdist), color=NA) +

@@ -125,8 +125,24 @@ Proportions<- Proportions + draw_label("% in Deciles 1 & 2", x=0.05, y=0.12, hju
   draw_label("20% most dependent on transport = 38%", x=0.05, y=0.07, hjust=0,color = "black", size = 8)+
   draw_label("All of London = 16%", x=0.05, y=0.02, hjust=0,color = "black", size = 8)+
   draw_label("% BAME", x=0.55, y=0.12, hjust=0, fontface="bold", color = "black", size = 10)+
-  draw_label("20% most dependent on transport = 47%", x=0.55, y=0.07, hjust=0,color = "black", size = 8)+
+  draw_label("20% most dependent on transport = 46%", x=0.55, y=0.07, hjust=0,color = "black", size = 8)+
   draw_label("All of London = 39%", x=0.55, y=0.02, hjust=0,color = "black", size = 8)
 
 Test
 save_plot("proportions.png",Proportions,ncol=2,nrow=1)
+
+
+##################################################################
+#Filter out central London
+Central_London <- top_dependence %>% 
+  dplyr::filter(LAD11NM %in% c("City of London","Camden","Islington","Kensington and Chelsea","Lambeth","Southwark","Westminster"))
+
+proportion_central_london <- nrow(Central_London)/nrow(top_dependence)*100
+
+t <-  st_join(LSOA_index, Boroughs,join=st_contains,left = TRUE)
+
+
+Central_London_LSOAs <- LSOA_index %>% 
+  dplyr::filter(LAD11NM %in% c("City of London","Camden","Islington","Kensington and Chelsea","Lambeth","Southwark","Westminster"))
+
+proportion_central_london_LSOA <- nrow(Central_London_LSOAs)/nrow(LSOA_index)*100
